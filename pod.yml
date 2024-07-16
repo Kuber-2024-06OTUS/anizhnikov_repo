@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-conf
+  namespace: homework
+data:
+  nginx.conf: |
+    user nginx;
+    worker_processes  1;
+    events {
+      worker_connections  10240;
+    }
+    http {
+      server {
+          listen       80;
+          server_name  localhost;
+          location / {
+            root   /homework; 
+            index  index.html index.htm;
+        }
+      }
+    }
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kubernetes-intro
+  namespace: homework
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+    ports:
+    - containerPort: 8000
+    lifecycle:
+      preStop:
+        exec:
+          command: ["/bin/sh","-c","rm -rf /homework/index.html"]
+    volumeMounts:
+    - name: nginx-conf
+      mountPath: /etc/nginx/nginx.conf
+      subPath: nginx.conf
+      readOnly: true
+    - name: datastore
+      mountPath: /homework
+# These containers are run during pod initialization
+  initContainers:
+  - name: install
+    image: busybox:1.28
+    command:
+    - wget
+    - "-O"
+    - "/init/index.html"
+    - http://info.cern.ch
+    volumeMounts:
+    - name: datastore
+      mountPath: "/init"
+  dnsPolicy: Default
+  volumes:
+  - name: datastore
+    emptyDir: {}
+  - name: nginx-conf
+    configMap:
+      name: nginx-conf
+      items:
+        - key: nginx.conf
+          path: nginx.conf

@@ -8,6 +8,7 @@
 2. Создан манифест service.yaml
 3. Установлен ingress
 4. Создан манифест ingress.yaml
+5. В манифесте ingress.yaml добавлено rewrite правило и путь для /homepage
 
 ## Как запустить проект:
  1. kubectl apply -f namespace.yaml

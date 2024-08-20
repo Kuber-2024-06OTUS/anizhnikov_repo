@@ -1,0 +1,120 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-conf
+  namespace: homework
+data:
+  nginx.conf: |
+    user nginx;
+    worker_processes  5;
+    events {
+      worker_connections  10240;
+    }
+    http {
+
+      server {
+          listen       8000;
+          server_name  _;
+          root /homework;
+
+          location /conf {
+            disable_symlinks off;
+            autoindex on;
+
+            proxy_no_cache 1;
+            add_header Last-Modified $date_gmt;
+            add_header Cache-Control 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0';
+            if_modified_since off;
+            expires off;
+            etag off;
+
+            include fastcgi_params;
+            fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+            fastcgi_param DOCUMENT_ROOT $realpath_root;     
+        }
+
+          location / {
+            index  index.html;
+        }
+
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubernetes-network
+  namespace: homework
+  labels: 
+    app: nginx
+spec:
+  replicas: 3
+  minReadySeconds: 10
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  selector: 
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+        namespace: homework
+    spec:
+      nodeSelector:
+        homework: "true"
+      containers:
+      - name: nginx
+        image: bxggs/nginx-autoindex:latest
+        ports:
+        - name: liveness-port
+          containerPort: 8000
+        readinessProbe:
+          httpGet:
+            path: /index.html
+            port: liveness-port
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 1
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/sh","-c","rm -rf /homework/index.html"]
+        volumeMounts:
+        - name: nginx-conf
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
+          readOnly: true
+        - name: datastore
+          mountPath: /homework
+        - name: homework-conf
+          mountPath: /homework/conf
+    # These containers are run during pod initialization
+      initContainers:
+      - name: install
+        image: busybox:1.28
+        command:
+        - wget
+        - "-O"
+        - "/init/index.html"
+        - http://info.cern.ch
+        volumeMounts:
+        - name: datastore
+          mountPath: "/init"
+      dnsPolicy: Default
+      volumes:
+      - name: datastore
+        persistentVolumeClaim:
+          claimName: pvc-default
+      - name: nginx-conf
+        configMap:
+          name: nginx-conf
+          items:
+            - key: nginx.conf
+              path: nginx.conf
+      - name: homework-conf
+        configMap:
+          name: cfgmap-values

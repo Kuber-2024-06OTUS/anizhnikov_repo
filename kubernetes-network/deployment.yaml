@@ -54,10 +54,10 @@ spec:
         - name: liveness-port
           containerPort: 8000
         env:
-          - name: MY_NODE_NAME
+          - name: NODE_IP
             valueFrom:
               fieldRef:
-                fieldPath: spec.nodeName
+                fieldPath: status.hostIP
         readinessProbe:
           httpGet:
             path: /index.html

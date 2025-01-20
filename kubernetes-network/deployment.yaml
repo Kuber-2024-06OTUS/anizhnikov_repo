@@ -29,7 +29,7 @@ metadata:
   labels: 
     app: nginx
 spec:
-  replicas: 3
+  replicas: 1
   minReadySeconds: 10
   strategy:
     rollingUpdate:
@@ -53,6 +53,11 @@ spec:
         ports:
         - name: liveness-port
           containerPort: 8000
+        env:
+          - name: MY_NODE_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
         readinessProbe:
           httpGet:
             path: /index.html

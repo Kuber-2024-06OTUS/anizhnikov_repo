@@ -45,6 +45,7 @@ spec:
         app: nginx
         namespace: homework
     spec:
+      serviceAccountName: monitoring
       nodeSelector:
         homework: "true"
       containers:
